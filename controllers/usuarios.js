@@ -8,13 +8,46 @@ const Usuario = require('../models/usuario');
 const usuariosGet = async(req = request, res = response) => {
 
     //const {q, nombre = 'No Name', apikey, page=1, limit} = req.query;
+    //Se establecen los parametros que se esperan del body
     const { limite = 5, desde = 0} = req.query;
-    const usuarios = await Usuario.find()
-        .skip (Number( desde ))
-        .limit(Number(limite));
+    //Estado = true, para mostrar solo los de estatus activo
+    const query = {estado: true}
 
+    /*
+    //Primera implemenación
+    //Obteniendo los registros de la base de datos
+    const usuarios = await Usuario.find( query ) 
+        //.skip sirve para poner desde que numero de registro comienzas a mostrar
+        .skip (Number( desde )) //Se parsea a number porque es lo que espera como argumento el metodo
+        //.limit sirve para mostrar un numero de registros y no traer todo de la BD
+        .limit(Number(limite));
+    //Haciendo get de total de documentos
+    const total = await Usuario.countDocuments( query );
+    */
+    
+
+    /**
+     * PROMESAS
+     * Este es un ejemplo claro de promesas, en el cual nos aseguraremos de que se ejecuten los callbacks
+     * de las funciones: usuarios y total en forma simultanea, y cuando ambos acaben retornará la repuesta
+     * el await no va a ayudar a que se espere a que espere la resolución de las dos promesas.
+     * Promise.all([]) es un metodo que nos ayuda a definir un grupo de promesas que se van a ejecutar de forma simultánea
+     */
+
+    const [total, usuarios] = await Promise.all([
+        Usuario.countDocuments( query ),
+        Usuario.find( query ) 
+        //.skip sirve para poner desde que numero de registro comienzas a mostrar
+        .skip (Number( desde )) //Se parsea a number porque es lo que espera como argumento el metodo
+        //.limit sirve para mostrar un numero de registros y no traer todo de la BD
+        .limit(Number(limite))
+
+    ]);
+
+    //Esta es la respuesta que se muestrea como json
     res.json({
-    usuarios
+        total,
+        usuarios
     });
 }
 
@@ -62,10 +95,21 @@ const usuariosPatch = (req, res) => {
     });
 }
 
-const usuariosDelete =  (req, res) => {
-    res.json({
-        msg: 'delete API - controlador'
-    });
+const usuariosDelete =  async(req, res) => {
+
+    const { id } = req.params;
+
+     /**
+     * Este tipo de borrado no se recomienda por que se peude peder la integridad referencial
+     */
+    //Borrado físico de la BD
+    //const usuario = await Usuario.findByIdAndDelete( id );
+
+    //Esta es la forma optima de hacer el delete, solo cambiando al usuario de estatus
+    const usuario = await Usuario.findByIdAndUpdate (id, { estado:false } );
+   
+
+    res.json(usuario);
 }
 
 
